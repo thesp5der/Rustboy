@@ -6,13 +6,15 @@ description = "A Game Boy (DMG) emulator in Rust"
 
 [dependencies]
 minifb = { version = "0.25", optional = true }
+cpal = { version = "0.15", optional = true }
 
 # The emulator core has zero dependencies; the window is an optional feature.
 #   cargo run --release -- game.gb
 #   cargo run --release --no-default-features -- game.gb --headless 600
 [features]
-default = ["gui"]
+default = ["gui", "audio"]
 gui = ["minifb"]
+audio = ["cpal"]   # needs ALSA headers on Linux: sudo apt install libasound2-dev
 
 [profile.release]
 opt-level = 3
