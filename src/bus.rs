@@ -1,5 +1,6 @@
 //! The system bus: address decoding, interrupt flags, OAM DMA, serial port.
 
+use crate::apu::Apu;
 use crate::cart::Cartridge;
 use crate::joypad::{Button, Joypad};
 use crate::ppu::Ppu;
@@ -12,8 +13,7 @@ pub struct Bus {
     pub joy: Joypad,
     wram: [u8; 0x2000],
     hram: [u8; 0x7F],
-    /// Raw storage for the sound registers (0xFF10-0xFF3F). Audio is not emulated.
-    apu: [u8; 0x30],
+    pub apu: Apu,
     pub ie: u8,
     pub iflag: u8,
     dma: u8,
@@ -25,8 +25,6 @@ pub struct Bus {
 
 impl Bus {
     pub fn new(cart: Cartridge) -> Self {
-        let mut apu = [0u8; 0x30];
-        apu[0x16] = 0xF1; // NR52: sound on
         Self {
             cart,
             ppu: Ppu::new(),
@@ -34,7 +32,7 @@ impl Bus {
             joy: Joypad::default(),
             wram: [0; 0x2000],
             hram: [0; 0x7F],
-            apu,
+            apu: Apu::new(44_100),
             ie: 0,
             iflag: 0xE1,
             dma: 0xFF,
@@ -50,6 +48,7 @@ impl Bus {
             self.iflag |= 0x04;
         }
         self.ppu.tick(cycles);
+        self.apu.tick(cycles);
         self.collect_ppu_irq();
     }
 
@@ -78,7 +77,7 @@ impl Bus {
             0xFF02 => self.sc | 0x7E,
             0xFF04..=0xFF07 => self.timer.read(addr),
             0xFF0F => self.iflag | 0xE0,
-            0xFF10..=0xFF3F => self.apu[(addr - 0xFF10) as usize],
+            0xFF10..=0xFF3F => self.apu.read(addr),
             0xFF46 => self.dma,
             0xFF40..=0xFF4B => self.ppu.read_reg(addr),
             0xFF80..=0xFFFE => self.hram[(addr - 0xFF80) as usize],
@@ -111,7 +110,7 @@ impl Bus {
                 }
             }
             0xFF0F => self.iflag = v & 0x1F,
-            0xFF10..=0xFF3F => self.apu[(addr - 0xFF10) as usize] = v,
+            0xFF10..=0xFF3F => self.apu.write(addr, v),
             0xFF46 => {
                 // OAM DMA, performed instantly rather than over 160 cycles.
                 self.dma = v;
