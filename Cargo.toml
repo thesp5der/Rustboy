@@ -1,0 +1,20 @@
+[package]
+name = "rustboy"
+version = "0.1.0"
+edition = "2021"
+description = "A Game Boy (DMG) emulator in Rust"
+
+[dependencies]
+minifb = { version = "0.25", optional = true }
+
+# The emulator core has zero dependencies; the window is an optional feature.
+#   cargo run --release -- game.gb
+#   cargo run --release --no-default-features -- game.gb --headless 600
+[features]
+default = ["gui"]
+gui = ["minifb"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
